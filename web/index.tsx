@@ -1,6 +1,6 @@
 
 // Import hooks and components
-import { useState, useLayoutEffect, useMemo } from 'react';
+import { useState, useLayoutEffect, useMemo, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 // 在浏览器 Babel 环境下，如果 constants.ts 在同一目录，直接引用文件名
 import { MERIDIAN_DATA, ACUPOINT_PINYIN_MAP, ELEMENT_THEMES } from './constants.ts';
@@ -23,20 +23,49 @@ const SORT_CONFIGS = {
 
 const AcupointImage = ({ pointFullTitle }) => {
   const pointName = pointFullTitle.split('(')[0].trim();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const pinyinName = ACUPOINT_PINYIN_MAP[pointName] || null;
-  const localImgPath = pinyinName ? `images/${pinyinName}.jpg` : '';
+  
+  // 智能加载策略：尝试不同后缀和命名模式
+  const EXTENSIONS = ['.jpg', '.png', '.webp', '.jpeg'];
+  const [strategyIdx, setStrategyIdx] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
 
-  useLayoutEffect(() => {
-    if (!pinyinName) {
-      console.warn(`[DEBUG] 映射缺失: "${pointName}" 未在 ACUPOINT_PINYIN_MAP 中定义。请检查 constants.ts`);
+  // 构建尝试路径列表：优先拼音各种后缀，其次中文名各种后缀
+  const strategies = useMemo(() => {
+    const list = [];
+    if (pinyinName) {
+      EXTENSIONS.forEach(ext => list.push(`images/${pinyinName}${ext}`));
+    }
+    // 同时也尝试中文命名，增加兼容性
+    EXTENSIONS.forEach(ext => list.push(`images/${pointName}${ext}`));
+    return list;
+  }, [pinyinName, pointName]);
+
+  const currentSrc = strategies[strategyIdx];
+
+  const handleError = () => {
+    if (strategyIdx < strategies.length - 1) {
+      // 尝试下一个路径策略
+      setStrategyIdx(prev => prev + 1);
+    } else {
+      console.warn(`[DEBUG] 穴位图片最终加载失败: "${pointName}"。已尝试所有可能路径:`, strategies);
       setStatus('error');
     }
-  }, [pinyinName, pointName]);
+  };
+
+  const handleLoad = () => {
+    setStatus('success');
+  };
+
+  // 当穴位改变时重置状态
+  useEffect(() => {
+    setStrategyIdx(0);
+    setStatus('loading');
+  }, [pointFullTitle]);
 
   return (
     <div className="w-full aspect-square relative flex items-center justify-center bg-stone-50 overflow-hidden border-b border-stone-100 p-3 group">
-      {/* Skeleton Loader */}
+      {/* 骨架屏 / 加载中 */}
       {status === 'loading' && (
         <div className="absolute inset-0 bg-stone-100 animate-pulse flex flex-col items-center justify-center">
           <div className="w-16 h-16 bg-stone-200 rounded-full mb-2 opacity-50"></div>
@@ -44,23 +73,21 @@ const AcupointImage = ({ pointFullTitle }) => {
         </div>
       )}
 
-      {/* Error / Missing State */}
+      {/* 错误 / 缺失 状态 */}
       {status === 'error' ? (
-        <div className="w-full h-full bg-stone-100 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-stone-200 text-stone-400">
-           <svg className="w-8 h-8 opacity-20 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="w-full h-full bg-stone-100 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-stone-200 text-stone-400 p-4 text-center">
+           <svg className="w-8 h-8 opacity-20 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
            </svg>
-           <span className="text-[9px] uppercase tracking-tighter opacity-50 font-sans">Image Missing</span>
+           <span className="text-[10px] uppercase tracking-tighter opacity-60 font-sans font-bold block mb-1">图片缺失</span>
+           <span className="text-[9px] opacity-40 font-mono break-all line-clamp-1">{pinyinName || pointName}</span>
         </div>
       ) : (
         <img 
-          src={localImgPath} 
+          src={currentSrc} 
           alt={pointName}
-          onLoad={() => setStatus('success')}
-          onError={() => {
-            console.error(`[DEBUG] 加载失败: 无法找到文件 "images/${pinyinName}.jpg"`);
-            setStatus('error');
-          }}
+          onLoad={handleLoad}
+          onError={handleError}
           className={`w-[90%] h-[90%] object-cover rounded-xl shadow-inner transition-all duration-700 ${status === 'success' ? 'opacity-100 scale-100 group-hover:scale-110' : 'opacity-0 scale-95'}`}
         />
       )}
