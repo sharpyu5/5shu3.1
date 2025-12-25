@@ -25,7 +25,7 @@ const AcupointImage = ({ pointFullTitle }) => {
   const pointName = pointFullTitle.split('(')[0].trim();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const pinyinName = ACUPOINT_PINYIN_MAP[pointName] || null;
-  const localImgPath = pinyinName ? `images/${pinyinName}.jpg` : '';
+  const localImgPath = pinyinName ? `/images/${pinyinName}.jpg` : '';
 
   useLayoutEffect(() => {
     if (!pinyinName) {
