@@ -1,0 +1,11 @@
+
+{
+  "name": "tcm-acupoints-manual",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TCM Five-Shu Points Manual - Static Site",
+  "scripts": {
+    "build": "echo 'No build step required'",
+    "install": "echo 'Using CDN dependencies, skipping local install'"
+  }
+}
